@@ -2,15 +2,18 @@
 
 Local MCP server for the [Remember.md](https://github.com/remember-md/remember) second brain. Run via `npx`, point any MCP client at it, query your markdown brain semantically.
 
-> **Status:** v0.0.1 — skeleton. Not yet functional. Active development.
+> **Status:** v0.1.0 — first functional release. One tool: `search_brain`. Active development continues.
 
 ## What it does
 
 Exposes your local markdown brain (a folder of `.md` files organised PARA-style by the [Remember.md plugin](https://github.com/remember-md/remember)) as a set of MCP tools any MCP client can call — Claude Code, OpenClaw, Cursor, Codex CLI, Claude.ai web, ChatGPT custom GPTs, anything that speaks the Model Context Protocol.
 
-Planned tools:
+Tools shipped in v0.1.0:
 
-- `search_brain(query, top_k)` — semantic + BM25 hybrid + wikilink-expand
+- `search_brain(query, top_k)` — hybrid retrieval. BM25 + vector + RRF fusion + 1-hop wikilink expansion. Lexical-first: BM25 results land immediately on first run, vector embeddings build in background and layer in once ready.
+
+Tools planned for v0.2+:
+
 - `get_file(path)` — read a brain file
 - `list_recent(period, kind?)` — recent journal / notes / decisions
 - `query_persona()` — current `Persona.md` content
