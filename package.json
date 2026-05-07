@@ -1,0 +1,51 @@
+{
+  "name": "@remember-md/mcp",
+  "version": "0.0.1",
+  "description": "Local MCP server for the Remember.md second brain — semantic search + retrieval over your markdown brain.",
+  "type": "module",
+  "bin": {
+    "remember-mcp": "./src/index.js"
+  },
+  "main": "./src/index.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "remember",
+    "remember-md",
+    "second-brain",
+    "knowledge-base",
+    "semantic-search",
+    "vector-search",
+    "obsidian",
+    "markdown",
+    "ai-memory"
+  ],
+  "author": "Gabriel Fratica <gabriel@codez.ro>",
+  "license": "MIT",
+  "homepage": "https://github.com/remember-md/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/remember-md/mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/remember-md/mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.0"
+  }
+}
