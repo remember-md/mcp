@@ -27,7 +27,7 @@ import { reindex } from './reindex.js';
 import { searchBrain } from './search.js';
 import { getState, setState, ensureModelMatch, setProgress, STATES } from './status.js';
 
-const VERSION = '0.1.2';
+const VERSION = '0.1.3';
 const DEFAULT_MODEL = process.env.REMEMBER_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
 function resolveBrain() {
@@ -55,7 +55,9 @@ async function backgroundIndex(db, embedder) {
     await embedPending({
       db,
       embedder,
-      batchSize: 32,
+      // batchSize uses embed.js default (8) — smaller batch keeps the
+      // event loop responsive for concurrent MCP tool calls during
+      // indexing. Don't override unless you have a reason.
       onProgress: (done) => {
         if (total > 0) setProgress(db, Math.floor((done / total) * 100));
       },
