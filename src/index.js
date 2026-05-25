@@ -27,7 +27,7 @@ import { reindex } from './reindex.js';
 import { searchBrain } from './search.js';
 import { getState, setState, ensureModelMatch, setProgress, STATES } from './status.js';
 
-const VERSION = '0.1.1';
+const VERSION = '0.1.2';
 const DEFAULT_MODEL = process.env.REMEMBER_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
 function resolveBrain() {

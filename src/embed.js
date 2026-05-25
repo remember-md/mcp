@@ -69,13 +69,19 @@ export class Embedder {
 
 // Worker that drains pending chunks from the DB, embeds them in batches,
 // writes vectors into the `vec` virtual table, and marks chunks
-// 'embedded'. Designed to run cooperatively (yields between batches via
-// setImmediate) so MCP tool calls aren't blocked.
+// 'embedded'. Designed to run cooperatively (yields after every batch
+// AND between every DB write) so concurrent MCP tool calls stay
+// responsive even mid-indexing.
+//
+// Default batchSize is 8 (was 32). The smaller batch gives the event
+// loop more frequent yield opportunities — at ~500ms per batch on
+// commodity CPU, queued tool calls wait < 1s in the worst case, not
+// 4+ seconds.
 //
 // onProgress(done, total) is called once per batch with cumulative
 // embedded count and total chunk count. Errors abort the worker; caller
 // should set vector_state = 'failed' on rejection.
-export async function embedPending({ db, embedder, batchSize = 32, onProgress } = {}) {
+export async function embedPending({ db, embedder, batchSize = 8, onProgress } = {}) {
   const total = db.prepare('SELECT COUNT(*) AS n FROM chunks').get().n;
   if (total === 0) return { embedded: 0, total };
 
@@ -84,11 +90,18 @@ export async function embedPending({ db, embedder, batchSize = 32, onProgress } 
 
   let embeddedTotal = db.prepare("SELECT COUNT(*) AS n FROM chunks WHERE vec_status='embedded'").get().n;
 
+  const yieldNow = () => new Promise(r => setImmediate(r));
+
   while (true) {
     const pending = db.prepare(
       "SELECT id, text FROM chunks WHERE vec_status = 'pending' ORDER BY id LIMIT ?"
     ).all(batchSize);
     if (pending.length === 0) break;
+
+    // Yield BEFORE the synchronous embed call so any tool call queued
+    // since the last batch gets a chance to run first. The embed call
+    // is the CPU-heavy step that holds the event loop.
+    await yieldNow();
 
     const vecs = await embedder.embedBatch(pending.map(c => c.text));
     for (let i = 0; i < pending.length; i++) {
@@ -101,7 +114,7 @@ export async function embedPending({ db, embedder, batchSize = 32, onProgress } 
     }
 
     if (onProgress) onProgress(embeddedTotal, total);
-    await new Promise(r => setImmediate(r));
+    await yieldNow();
   }
 
   return { embedded: embeddedTotal, total };

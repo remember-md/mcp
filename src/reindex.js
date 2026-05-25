@@ -25,10 +25,43 @@ function extractLinks(body) {
   return [...out];
 }
 
+// Patterns ignored at ANY depth under the brain root. Most are standard
+// build-output / dependency / cache directories from common dev toolchains;
+// when a brain contains source repos under Projects/, these would otherwise
+// flood the index with thousands of tangential markdown files (LICENSE.md,
+// README.md inside node_modules, etc.). The .remember/ pattern keeps the
+// derived SQLite index out of its own walk.
+//
+// Note: fast-glob requires `**/<name>/**` to match nested dirs at any depth.
+// `node_modules/**` would only match root-level — the bug we're fixing.
+const IGNORE_PATTERNS = Object.freeze([
+  // Our own index
+  '**/.remember/**',
+  // VCS
+  '**/.git/**', '**/.hg/**', '**/.svn/**',
+  // Node / JS ecosystem
+  '**/node_modules/**',
+  '**/dist/**', '**/build/**', '**/out/**',
+  '**/.next/**', '**/.nuxt/**', '**/.vite/**', '**/.turbo/**',
+  '**/.parcel-cache/**', '**/.cache/**',
+  // Python
+  '**/__pycache__/**', '**/.venv/**', '**/venv/**', '**/.tox/**',
+  // PHP / Ruby / etc.
+  '**/vendor/**',
+  // Rust / Java / Go
+  '**/target/**',
+  // Test coverage
+  '**/coverage/**', '**/.nyc_output/**',
+  // OS junk
+  '**/.DS_Store/**',
+  // Editor / IDE
+  '**/.idea/**', '**/.vscode/**',
+]);
+
 async function listMarkdown(root) {
   return fg('**/*.md', {
     cwd: root,
-    ignore: ['.remember/**', 'node_modules/**', '.git/**'],
+    ignore: [...IGNORE_PATTERNS],
     dot: false,
   });
 }
