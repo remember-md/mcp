@@ -1,6 +1,6 @@
 {
   "name": "@remember-md/mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Local MCP server for the Remember.md second brain — semantic search + retrieval over your markdown brain.",
   "type": "module",
   "bin": {

@@ -27,7 +27,7 @@ import { reindex } from './reindex.js';
 import { searchBrain } from './search.js';
 import { getState, setState, ensureModelMatch, setProgress, STATES } from './status.js';
 
-const VERSION = '0.1.3';
+const VERSION = '0.1.4';
 const DEFAULT_MODEL = process.env.REMEMBER_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
 function resolveBrain() {
@@ -119,13 +119,55 @@ async function main() {
     tools: [
       {
         name: 'search_brain',
-        description:
-          "Search the user's markdown second brain. Pass a concise topical phrase (3-7 keywords), not a full question. Returns ranked chunks with citations.",
+        description: [
+          "Search the user's markdown second brain (Notes, People, Projects, Journal, Areas).",
+          'Returns ranked chunks with citations. Hybrid retrieval: BM25 (lexical) + vector (semantic) + 1-hop wikilink expansion, fused with reciprocal rank.',
+          '',
+          'HOW TO QUERY EFFECTIVELY:',
+          '- Pass a 3–7 word topical phrase, NOT the user\'s full question.',
+          '- Strip stopwords and question words. Keep nouns + concepts + proper names.',
+          '- Match the brain\'s language. Technical notes are usually English even when the user writes Romanian. Personal/strategic notes are often Romanian. When in doubt, try both languages on separate calls.',
+          '- Phrase as a declarative noun-phrase (how content is written), not as an interrogative.',
+          '',
+          'GOOD vs BAD examples:',
+          '  user: "what do I think about postgres for small projects"',
+          '    bad:  "what do I think about postgres for small projects"',
+          '    good: "postgres small projects preferences"',
+          '  user: "who works on dollie"',
+          '    bad:  "who works on dollie"',
+          '    good: "dollie project people contributors"',
+          '  user: "ce cred despre lucrul în paralel pe proiecte"',
+          '    bad:  "ce cred despre lucrul în paralel"',
+          '    good: "multiple parallel projects orchestration" (English — matches technical notes)',
+          '  user: "ce decizii am luat în martie"',
+          '    good: "decisions march 2026" OR "decizii martie 2026" (try both)',
+          '',
+          'RESPONSE FIELDS:',
+          '- results[].source: "vector+bm25" (strongest signal — both methods agreed), "vector" (semantic only), "bm25" (lexical only), "wikilink-expand" (related via [[link]])',
+          '- results[].score: higher is better; >0.025 usually indicates a strong hit',
+          '- note: present when vector index is building or failed — results are BM25-only in those cases',
+          '',
+          'MULTI-CALL STRATEGY:',
+          '- If top result score < 0.020 OR no result obviously matches the user intent, call again with a different phrasing (alternative keywords, alternative language) before concluding "not found".',
+          '- For broad topics, prefer 2 narrow calls over 1 wide call.',
+          '',
+          'PERSONA NOTE: the user\'s Persona.md is already injected at session start. Do not query for things contained in Persona itself (Mission, Directives, recent Evidence Log entries) — you already have them.',
+        ].join('\n'),
         inputSchema: {
           type: 'object',
           properties: {
-            query: { type: 'string', minLength: 1, description: 'Search phrase' },
-            top_k: { type: 'integer', default: 10, minimum: 1, maximum: 50 },
+            query: {
+              type: 'string',
+              minLength: 1,
+              description: 'Topical phrase, 3–7 words. Nouns + concepts + names. NOT a full question.',
+            },
+            top_k: {
+              type: 'integer',
+              default: 10,
+              minimum: 1,
+              maximum: 50,
+              description: 'Number of results to return. 5–10 for focused queries, 15–25 for broad surveys.',
+            },
           },
           required: ['query'],
         },
