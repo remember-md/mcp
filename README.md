@@ -23,7 +23,7 @@ Tools planned for v0.2+:
 ## How it works
 
 - **Storage:** `node:sqlite` (Node 22.5+ stdlib) + [sqlite-vec](https://github.com/asg017/sqlite-vec) extension for vector search + FTS5 for BM25 — no server, no native compilation, no toolchain.
-- **Embeddings:** [@huggingface/transformers](https://github.com/huggingface/transformers.js) running quantized `Xenova/bge-micro-v2` (384d, ~17 MB) locally — no cloud calls.
+- **Embeddings:** [@huggingface/transformers](https://github.com/huggingface/transformers.js) running quantized `Xenova/all-MiniLM-L6-v2` (384d, ~23 MB) locally — no cloud calls.
 - **Sync:** on-demand mtime + content-hash incremental reindex at query time. The brain (markdown) is the source of truth; the index in `.remember/index.db` is rebuildable.
 - **Graceful degradation:** if vector loads fail, falls back to FTS5-only; if both fail, falls back to ripgrep.
 
@@ -53,7 +53,7 @@ Add to your MCP config:
 }
 ```
 
-First run downloads the package (~15–30s) and the embedding model (~17 MB, one-time). After that, queries are sub-second.
+First run downloads the package (~15–30s) and the embedding model (~23 MB, one-time). After that, queries are sub-second.
 
 ## Configuration
 
@@ -61,7 +61,7 @@ First run downloads the package (~15–30s) and the embedding model (~17 MB, one
 |---|---|---|
 | `REMEMBER_BRAIN_PATH` | `~/remember` | Brain root directory (folder of markdown files) |
 | `REMEMBER_INDEX_DIR` | `${brain}/.remember` | Where the SQLite index lives |
-| `REMEMBER_EMBEDDING_MODEL` | `Xenova/bge-micro-v2` | Hugging Face model id |
+| `REMEMBER_EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | Hugging Face model id |
 | `REMEMBER_TIER` | auto | `auto` / `vec` / `fts5` / `ripgrep` (force a fallback tier) |
 
 ## Privacy

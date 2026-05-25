@@ -2,7 +2,12 @@
 // First call to embed/embedBatch downloads the model (cached after).
 // _pipelineLoader hook lets tests inject a fake without real download.
 
-const DEFAULT_MODEL = 'Xenova/bge-micro-v2';
+// Public, ungated, 384-dim. We previously defaulted to bge-micro-v2 but
+// Xenova/bge-micro-v2 went gated on HuggingFace (requires HF login + TOS
+// accept), breaking unattended npx installs. all-MiniLM-L6-v2 stays public
+// and is the long-standing baseline in Smart Connections / Continue.dev.
+// Override at runtime with REMEMBER_EMBEDDING_MODEL env var.
+const DEFAULT_MODEL = 'Xenova/all-MiniLM-L6-v2';
 const DEFAULT_DIM   = 384;
 
 async function defaultLoader(model) {
