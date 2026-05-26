@@ -85,6 +85,12 @@ export async function embedPending({ db, embedder, batchSize = 8, onProgress } =
   const total = db.prepare('SELECT COUNT(*) AS n FROM chunks').get().n;
   if (total === 0) return { embedded: 0, total };
 
+  // sqlite-vec's vec0 virtual table does NOT honor `OR REPLACE` — it
+  // enforces rowid uniqueness at its own layer and raises a PRIMARY KEY
+  // conflict regardless of the conflict-resolution clause. Explicit
+  // DELETE-then-INSERT covers the case where a chunk is re-embedded
+  // (model change, manual reset, future re-process flows).
+  const delVec = db.prepare('DELETE FROM vec WHERE rowid = ?');
   const insVec = db.prepare('INSERT INTO vec (rowid, embedding) VALUES (?, ?)');
   const markEmbedded = db.prepare("UPDATE chunks SET vec_status = 'embedded' WHERE id = ?");
 
@@ -108,7 +114,11 @@ export async function embedPending({ db, embedder, batchSize = 8, onProgress } =
       const v = vecs[i];
       const buf = Buffer.from(v.buffer, v.byteOffset, v.byteLength);
       // sqlite-vec's vec0 vtab requires a BigInt rowid bind through node:sqlite.
-      insVec.run(BigInt(pending[i].id), buf);
+      // DELETE-then-INSERT pattern: vec0 rejects duplicate rowids even with
+      // OR REPLACE, so we clear any pre-existing row first.
+      const id = BigInt(pending[i].id);
+      delVec.run(id);
+      insVec.run(id, buf);
       markEmbedded.run(pending[i].id);
       embeddedTotal++;
     }

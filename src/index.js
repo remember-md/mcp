@@ -27,7 +27,7 @@ import { reindex } from './reindex.js';
 import { searchBrain } from './search.js';
 import { getState, setState, ensureModelMatch, setProgress, STATES } from './status.js';
 
-const VERSION = '0.1.4';
+const VERSION = '0.1.5';
 const DEFAULT_MODEL = process.env.REMEMBER_EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 
 function resolveBrain() {
@@ -44,12 +44,25 @@ function fail(msg) {
 // Background worker: ensures every chunk gets an embedding. Runs
 // cooperatively (yields between batches) so concurrent search_brain
 // calls aren't blocked. Updates state machine + progress meta.
+//
+// State transitions:
+//   first ever spawn        → MODEL_DOWNLOADING → EMBEDDING → READY
+//   subsequent re-embed     → EMBEDDING → READY  (model already loaded)
+//
+// We never bounce back through MODEL_DOWNLOADING on subsequent runs:
+// the model is loaded once per process, so re-entering that state would
+// make `search_brain` (which only goes hybrid when state===READY) think
+// the model is being downloaded and degrade to BM25 unnecessarily.
 async function backgroundIndex(db, embedder) {
   try {
-    setState(db, STATES.MODEL_DOWNLOADING);
-    await embedder.embed('warmup');           // forces model download
+    if (!embedder._pipeline) {
+      setState(db, STATES.MODEL_DOWNLOADING);
+      setProgress(db, 0);
+      await embedder.embed('warmup');           // forces model download
+    }
 
     setState(db, STATES.EMBEDDING);
+    setProgress(db, 0);
     const total = db.prepare("SELECT COUNT(*) AS n FROM chunks").get().n;
 
     await embedPending({
@@ -183,10 +196,11 @@ async function main() {
     // Cheap incremental reindex on every call (mtime-only path is ~50-200ms).
     const stats = await reindex({ db, root: brain, model: embedder.model });
     // If reindex added/updated files, those new chunks are 'pending'. Kick
-    // the background indexer so they get embedded eventually. (No-op if
-    // already running; the worker only embeds 'pending' rows.)
+    // the background indexer so they get embedded eventually. backgroundIndex
+    // itself owns state transitions — don't pre-emptively flip EMBEDDING
+    // here or we race against the worker setting MODEL_DOWNLOADING /
+    // EMBEDDING / READY internally.
     if (stats.filesAdded + stats.filesUpdated > 0 && getState(db) === STATES.READY) {
-      setState(db, STATES.EMBEDDING);
       backgroundIndex(db, embedder).catch(() => {});
     }
     const out = await searchBrain({ db, embedder, query, top_k });
